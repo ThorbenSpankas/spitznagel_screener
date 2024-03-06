@@ -39,6 +39,7 @@ tickers = list(tickers_dict.keys())
 spitznagel_worthy = []
 
 # Iterate over tickers and calculate the Faustmann ratio
+print("lets go")
 for ticker_symbol in tickers:
     ticker = yf.Ticker(ticker_symbol)
     try:
