@@ -1,6 +1,7 @@
 import yfinance as yf
 import pandas as pd i
 import logging
+import ast
 
 # Configure logging
 logger = logging.getLogger('yfinance')
@@ -27,9 +28,13 @@ not_found_handler = NotFoundLogHandler()
 logger.addHandler(not_found_handler)
 
 # data from https://github.com/mlapenna7/yh_symbol_universe/blob/main/yhallsym.txt
-import warnings
-warnings.filterwarnings('ignore')
-import requests.exceptions
+# Load tickers from the file
+with open("ticker_list_yf.txt", "r") as file:
+    content = file.read()
+    tickers_dict = ast.literal_eval(content)  # Safely evaluate the string as a dictionary
+
+# Extract only the tickers
+tickers = list(tickers_dict.keys())
 # Initialize an empty list to store dictionaries
 spitznagel_worthy = []
 
