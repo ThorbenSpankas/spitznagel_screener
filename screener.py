@@ -2,6 +2,7 @@ import yfinance as yf
 import pandas as pd
 import logging
 import ast
+import gc
 
 # Configure logging
 logger = logging.getLogger('yfinance')
@@ -40,58 +41,66 @@ spitznagel_worthy = []
 
 # Iterate over tickers and calculate the Faustmann ratio
 print("lets go")
-for ticker_symbol in tickers:
-    ticker = yf.Ticker(ticker_symbol)
-    try:
-        market_cap = ticker.info.get("marketCap", 0)
-        balance_sheet = ticker.balance_sheet
 
-        # Check if necessary data is available
-        if market_cap > 0 and 'Invested Capital' in balance_sheet.index and 'Cash And Cash Equivalents' in balance_sheet.index and 'Total Debt' in balance_sheet.index:
-            invested_capital = balance_sheet.loc['Invested Capital'].iloc[0]
-            total_cash = balance_sheet.loc['Cash And Cash Equivalents'].iloc[0]
-            total_debt = balance_sheet.loc['Total Debt'].iloc[0]
+batch_size = 100  # Define how many tickers to process at a time
 
-            below_debt_limit = invested_capital + total_cash > total_debt
-            # Calculate the Faustmann ratio
-            faustmann_ratio = market_cap / (invested_capital + total_cash - total_debt)
-
-            # Check if Faustmann ratio is below 1
-            if faustmann_ratio < 1 and below_debt_limit:
-                # Add to the list as a dictionary
-                # spitznagel_worthy.append({"Ticker": ticker_symbol, "Faustmann Ratio": faustmann_ratio})
-               #  print(f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, checking roic")
-                ebit = ticker.financials.loc["EBIT"].iloc[0]
-                roic = ebit/invested_capital
-                #print(f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}")
-                if roic > 0.75:
-                    spitznagel_worthy.append({"Ticker": ticker_symbol, "Faustmann_Ratio": faustmann_ratio, "ROIC": roic})
-                    #print("FOUND ONE")
-                    print(f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}")
-                    #print("FOUND ONE")
+# Iterate over tickers in batches
+for i in range(0, len(tickers), batch_size):
+    batch_tickers = tickers[i:i+batch_size]
+    for ticker_symbol in batch_tickers:
+        ticker = yf.Ticker(ticker_symbol)
+        try:
+            market_cap = ticker.info.get("marketCap", 0)
+            balance_sheet = ticker.balance_sheet
+    
+            # Check if necessary data is available
+            if market_cap > 0 and 'Invested Capital' in balance_sheet.index and 'Cash And Cash Equivalents' in balance_sheet.index and 'Total Debt' in balance_sheet.index:
+                invested_capital = balance_sheet.loc['Invested Capital'].iloc[0]
+                total_cash = balance_sheet.loc['Cash And Cash Equivalents'].iloc[0]
+                total_debt = balance_sheet.loc['Total Debt'].iloc[0]
+    
+                below_debt_limit = invested_capital + total_cash > total_debt
+                # Calculate the Faustmann ratio
+                faustmann_ratio = market_cap / (invested_capital + total_cash - total_debt)
+    
+                # Check if Faustmann ratio is below 1
+                if faustmann_ratio < 1 and below_debt_limit:
+                    # Add to the list as a dictionary
+                    # spitznagel_worthy.append({"Ticker": ticker_symbol, "Faustmann Ratio": faustmann_ratio})
+                   #  print(f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, checking roic")
+                    ebit = ticker.financials.loc["EBIT"].iloc[0]
+                    roic = ebit/invested_capital
+                    #print(f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}")
+                    if roic > 0.75:
+                        spitznagel_worthy.append({"Ticker": ticker_symbol, "Faustmann_Ratio": faustmann_ratio, "ROIC": roic})
+                        #print("FOUND ONE")
+                        print(f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}")
+                        #print("FOUND ONE")
+            
+    
+        except requests.exceptions.HTTPError as e:
+            if e.status_code == 404:
+                a= 33
+    
+        except requests.exceptions.HTTPError as err:
+            a=44
+    
+        except requests.exceptions.RequestException as err:
+            c = 309
         
-
-    except requests.exceptions.HTTPError as e:
-        if e.status_code == 404:
-            a= 33
-
-    except requests.exceptions.HTTPError as err:
-        a=44
-
-    except requests.exceptions.RequestException as err:
-        c = 309
+        except KeyError:
+            # Handle specific missing data errors quietly or log them
+            a = 2# logging.info(f"Data missing for {ticker_symbol}")
     
-    except KeyError:
-        # Handle specific missing data errors quietly or log them
-        a = 2# logging.info(f"Data missing for {ticker_symbol}")
+        except IndexError:
+            # Handle cases where .iloc[] fails due to missing data
+            a = 3 #logging.info(f"Index error for {ticker_symbol}, might be missing financial data")
+        
+        except Exception as e:
+            a = 1
+            #print(f"Error processing {ticker_symbol}: {e}")
 
-    except IndexError:
-        # Handle cases where .iloc[] fails due to missing data
-        a = 3 #logging.info(f"Index error for {ticker_symbol}, might be missing financial data")
-    
-    except Exception as e:
-        a = 1
-        #print(f"Error processing {ticker_symbol}: {e}")
+    gc.collect()
 
 
 # Create DataFrame from the list of dictionaries
