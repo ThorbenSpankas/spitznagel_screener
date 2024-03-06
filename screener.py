@@ -1,5 +1,5 @@
 import yfinance as yf
-import pandas as pd i
+import pandas as pd
 import logging
 import ast
 
