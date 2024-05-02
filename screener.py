@@ -39,8 +39,8 @@ with open("ticker_list_yf.txt", "r") as file:
     content = file.read()
     tickers_dict = ast.literal_eval(content)  # Safely evaluate the string as a dictionary
 
-# Extract only the tickers
-tickers = list(tickers_dict.keys())
+# # Extract only the tickers
+# tickers = list(tickers_dict.keys())
 # Initialize an empty list to store dictionaries
 spitznagel_worthy = []
 
@@ -60,9 +60,9 @@ print("lets go")
 batch_size = 100  # Define how many tickers to process at a time
 
 # Iterate over tickers in batches
-for i in range(0, len(tickers), batch_size):
-    batch_tickers = tickers[i:i+batch_size]
-    for ticker_symbol in batch_tickers:
+for i in range(0, len(tickers_dict), batch_size):
+    batch_items = list(tickers_dict.items())[i:i+batch_size]
+    for ticker_symbol, company_name in batch_items:
         ticker = yf.Ticker(ticker_symbol)
         try:
             market_cap = ticker.info.get("marketCap", 0)
@@ -89,8 +89,8 @@ for i in range(0, len(tickers), batch_size):
                     if roic > 0.5:
                         spitznagel_worthy.append({"Ticker": ticker_symbol, "Faustmann_Ratio": faustmann_ratio, "ROIC": roic})
                         #print("FOUND ONE")
-                        print(f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}")
-                        message = f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}"
+                        print(f"Ticker: {ticker_symbol}, Company: {company_name}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}")
+                        message = f"Ticker: {ticker_symbol}, Company: {company_name}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}"
                         send_telegram_message(GROUP_CHAT_ID, message)
            
     
