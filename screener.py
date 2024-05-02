@@ -76,7 +76,7 @@ for i in range(0, len(tickers), batch_size):
     
                 below_debt_limit = invested_capital_current + total_cash > total_debt
                 # Calculate the Faustmann ratio
-                faustmann_ratio = market_cap / (invested_capital_current + total_cash - total_debt)
+                faustmann_ratio = round(market_cap / (invested_capital_current + total_cash - total_debt)3)
     
                 # Check if Faustmann ratio is below 1
                 if below_debt_limit:
@@ -84,7 +84,7 @@ for i in range(0, len(tickers), batch_size):
                     # spitznagel_worthy.append({"Ticker": ticker_symbol, "Faustmann Ratio": faustmann_ratio})
                    #  print(f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, checking roic")
                     ebit = ticker.financials.loc["EBIT"].iloc[0]
-                    roic = ebit/invested_capital_current
+                    roic = round(ebit/invested_capital_current,3)
                     #print(f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}")
                     if roic > 0.5:
                         spitznagel_worthy.append({"Ticker": ticker_symbol, "Faustmann_Ratio": faustmann_ratio, "ROIC": roic})
