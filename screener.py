@@ -76,7 +76,7 @@ for i in range(0, len(tickers), batch_size):
     
                 below_debt_limit = invested_capital_current + total_cash > total_debt
                 # Calculate the Faustmann ratio
-                faustmann_ratio = round(market_cap / (invested_capital_current + total_cash - total_debt)3)
+                faustmann_ratio = round(market_cap / (invested_capital_current + total_cash - total_debt),3)
     
                 # Check if Faustmann ratio is below 1
                 if below_debt_limit:
