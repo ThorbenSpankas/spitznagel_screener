@@ -3,6 +3,12 @@ import pandas as pd
 import logging
 import ast
 import gc
+import requests
+from telegram import Bot
+
+# Initialize the Telegram Bot with your token
+TELEGRAM_TOKEN='6717990254:AAGFOAqjtHJ7gRD0enLdQvCkIFvJTtFOzYM'
+GROUP_CHAT_ID = '-4220170140'
 
 # Configure logging
 logger = logging.getLogger('yfinance')
@@ -39,6 +45,16 @@ tickers = list(tickers_dict.keys())
 # Initialize an empty list to store dictionaries
 spitznagel_worthy = []
 
+def send_telegram_message(chat_id, text):
+    """Sends a message to the specified Telegram chat."""
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    data = {
+        'chat_id': chat_id,
+        'text': text
+    }
+    response = requests.post(url, data=data)
+    return response.json()
+
 # Iterate over tickers and calculate the Faustmann ratio
 print("lets go")
 
@@ -55,28 +71,29 @@ for i in range(0, len(tickers), batch_size):
     
             # Check if necessary data is available
             if market_cap > 0 and 'Invested Capital' in balance_sheet.index and 'Cash And Cash Equivalents' in balance_sheet.index and 'Total Debt' in balance_sheet.index:
-                invested_capital = balance_sheet.loc['Invested Capital'].iloc[0]
+                invested_capital_current = balance_sheet.loc['Invested Capital'].iloc[0]
                 total_cash = balance_sheet.loc['Cash And Cash Equivalents'].iloc[0]
                 total_debt = balance_sheet.loc['Total Debt'].iloc[0]
     
-                below_debt_limit = invested_capital + total_cash > total_debt
+                below_debt_limit = invested_capital_current + total_cash > total_debt
                 # Calculate the Faustmann ratio
-                faustmann_ratio = market_cap / (invested_capital + total_cash - total_debt)
+                faustmann_ratio = market_cap / (invested_capital_current + total_cash - total_debt)
     
                 # Check if Faustmann ratio is below 1
-                if faustmann_ratio < 1 and below_debt_limit:
+                if below_debt_limit:
                     # Add to the list as a dictionary
                     # spitznagel_worthy.append({"Ticker": ticker_symbol, "Faustmann Ratio": faustmann_ratio})
                    #  print(f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, checking roic")
                     ebit = ticker.financials.loc["EBIT"].iloc[0]
-                    roic = ebit/invested_capital
+                    roic = ebit/invested_capital_current
                     #print(f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}")
-                    if roic > 0.75:
+                    if roic > 0.5:
                         spitznagel_worthy.append({"Ticker": ticker_symbol, "Faustmann_Ratio": faustmann_ratio, "ROIC": roic})
                         #print("FOUND ONE")
                         print(f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}")
-                        #print("FOUND ONE")
-            
+                        message = f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}"
+                        send_telegram_message(GROUP_CHAT_ID, message)
+           
     
         except requests.exceptions.HTTPError as e:
             if e.status_code == 404:
@@ -102,13 +119,15 @@ for i in range(0, len(tickers), batch_size):
 
     gc.collect()
 
+    # telegram bot 6717990254:AAGFOAqjtHJ7gRD0enLdQvCkIFvJTtFOzYM
+
 
 # Create DataFrame from the list of dictionaries
-spitznagel_worthy = pd.DataFrame(spitznagel_worthy)
+# spitznagel_worthy = pd.DataFrame(spitznagel_worthy)
 
 # Save the DataFrame with the results to a CSV file
-spitznagel_worthy.to_csv("spitznagel_worthy.csv", index=False)
+# spitznagel_worthy.to_csv("spitznagel_worthy.csv", index=False)
 
-invalid_tickers = not_found_handler.invalid_tickers
-for ticker in invalid_tickers:
-    tickers.pop(ticker, None)
+# invalid_tickers = not_found_handler.invalid_tickers
+# for ticker in invalid_tickers:
+#     tickers.pop(ticker, None)
