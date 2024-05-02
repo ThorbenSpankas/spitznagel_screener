@@ -4,7 +4,6 @@ import logging
 import ast
 import gc
 import requests
-from telegram import Bot
 
 # Initialize the Telegram Bot with your token
 TELEGRAM_TOKEN='6717990254:AAGFOAqjtHJ7gRD0enLdQvCkIFvJTtFOzYM'
