@@ -35,9 +35,9 @@ logger.addHandler(not_found_handler)
 
 # data from https://github.com/mlapenna7/yh_symbol_universe/blob/main/yhallsym.txt
 # Load tickers from the file
-with open("ticker_list_yf.txt", "r") as file:
-    content = file.read()
-    tickers_dict = ast.literal_eval(content)  # Safely evaluate the string as a dictionary
+# with open("ticker_list_yf.txt", "r") as file:
+#     content = file.read()
+#     tickers_dict = ast.literal_eval(content)  # Safely evaluate the string as a dictionary
 
 # # Extract only the tickers
 # tickers = list(tickers_dict.keys())
@@ -57,70 +57,100 @@ def send_telegram_message(chat_id, text):
 # Iterate over tickers and calculate the Faustmann ratio
 print("lets go")
 
-batch_size = 10 # Define how many tickers to process at a time
 
-# Iterate over tickers in batches
-for i in range(0, len(tickers_dict), batch_size):
-    batch_items = list(tickers_dict.items())[i:i+batch_size]
-    for ticker_symbol, company_name in batch_items:
-        ticker = yf.Ticker(ticker_symbol)
-        try:
-            market_cap = ticker.info.get("marketCap", 0)
-            balance_sheet = ticker.balance_sheet
-    
-            # Check if necessary data is available
-            if market_cap > 0 and 'Invested Capital' in balance_sheet.index and 'Cash And Cash Equivalents' in balance_sheet.index and 'Total Debt' in balance_sheet.index:
-                invested_capital_current = balance_sheet.loc['Invested Capital'].iloc[:-1]
-                total_cash = balance_sheet.loc['Cash And Cash Equivalents'].iloc[0]
-                total_debt = balance_sheet.loc['Total Debt'].iloc[0]
-    
-                below_debt_limit = invested_capital_current + total_cash > total_debt
-                # Calculate the Faustmann ratio
-                faustmann_ratio = round(market_cap / (invested_capital_current + total_cash - total_debt),3)
-    
-                # Check if Faustmann ratio is below 1
-                if below_debt_limit:
-                    # Add to the list as a dictionary
-                    # spitznagel_worthy.append({"Ticker": ticker_symbol, "Faustmann Ratio": faustmann_ratio})
-                   #  print(f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, checking roic")
-                    ebit = ticker.financials.loc["EBIT"],iloc[:-1]
-                    roics = ebit/invested_capital_current
-                    roic_mean = roics.mean()
-                    roic = round(roic_mean,3)
-                    #print(f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}")
-                    if roic > 0.5:
-                        spitznagel_worthy.append({"Ticker": ticker_symbol, "Faustmann_Ratio": faustmann_ratio, "ROIC": roic})
-                        #print("FOUND ONE")
-                        print(f"Ticker: {ticker_symbol}, Company: {company_name}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}")
-                        message = f"Ticker: {ticker_symbol}, Company: {company_name}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}"
-                        send_telegram_message(GROUP_CHAT_ID, message)
-           
-    
-        except requests.exceptions.HTTPError as e:
-            if e.status_code == 404:
-                a= 33
-    
-        except requests.exceptions.HTTPError as err:
-            a=44
-    
-        except requests.exceptions.RequestException as err:
-            c = 309
+def process_ticker(ticker_symbol, company_name):
+    ticker = yf.Ticker(ticker_symbol)
+    try:
+        market_cap = ticker.info.get("marketCap", 0)
+        balance_sheet = ticker.balance_sheet
+
+        # Check if necessary data is available
+        if market_cap > 0 and 'Invested Capital' in balance_sheet.index and 'Cash And Cash Equivalents' in balance_sheet.index and 'Total Debt' in balance_sheet.index:
+            invested_capital_current = balance_sheet.loc['Invested Capital'].iloc[:-1]
+            total_cash = balance_sheet.loc['Cash And Cash Equivalents'].iloc[0]
+            total_debt = balance_sheet.loc['Total Debt'].iloc[0]
+
+            below_debt_limit = invested_capital_current + total_cash > total_debt
+            # Calculate the Faustmann ratio
+            faustmann_ratio = round(market_cap / (invested_capital_current + total_cash - total_debt),3)
+
+            # Check if Faustmann ratio is below 1
+            if below_debt_limit:
+                # Add to the list as a dictionary
+                # spitznagel_worthy.append({"Ticker": ticker_symbol, "Faustmann Ratio": faustmann_ratio})
+                #  print(f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, checking roic")
+                ebit = ticker.financials.loc["EBIT"],iloc[:-1]
+                roics = ebit/invested_capital_current
+                roic_mean = roics.mean()
+                roic = round(roic_mean,3)
+                #print(f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}")
+                if roic > 0.5:
+                    spitznagel_worthy.append({"Ticker": ticker_symbol, "Faustmann_Ratio": faustmann_ratio, "ROIC": roic})
+                    #print("FOUND ONE")
+                    print(f"Ticker: {ticker_symbol}, Company: {company_name}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}")
+                    message = f"Ticker: {ticker_symbol}, Company: {company_name}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}"
+                    send_telegram_message(GROUP_CHAT_ID, message)
         
-        except KeyError:
-            # Handle specific missing data errors quietly or log them
-            a = 2# logging.info(f"Data missing for {ticker_symbol}")
+
+    except requests.exceptions.HTTPError as e:
+        if e.status_code == 404:
+            a= 33
+
+    except requests.exceptions.HTTPError as err:
+        a=44
+
+    except requests.exceptions.RequestException as err:
+        c = 309
     
-        except IndexError:
-            # Handle cases where .iloc[] fails due to missing data
-            a = 3 #logging.info(f"Index error for {ticker_symbol}, might be missing financial data")
-        
-        except Exception as e:
-            a = 1
-            #print(f"Error processing {ticker_symbol}: {e}")
+    except KeyError:
+        # Handle specific missing data errors quietly or log them
+        a = 2# logging.info(f"Data missing for {ticker_symbol}")
+
+    except IndexError:
+        # Handle cases where .iloc[] fails due to missing data
+        a = 3 #logging.info(f"Index error for {ticker_symbol}, might be missing financial data")
+    
+    except Exception as e:
+        a = 1
+        #print(f"Error processing {ticker_symbol}: {e}")
 
     gc.collect()
 
     # telegram bot 6717990254:AAGFOAqjtHJ7gRD0enLdQvCkIFvJTtFOzYM
+
+def parse_large_dict(file_path):
+    """ Generator function to parse a large dictionary file incrementally. """
+    with open(file_path, 'r') as file:
+        reading = False
+        buffer = ''
+        for line in file:
+            if '{' in line:
+                reading = True
+            if reading:
+                buffer += line.strip()
+                if '},' in buffer or '}' in buffer:
+                    # Handle the completion of a dictionary entry
+                    if buffer.endswith(','):
+                        buffer = buffer[:-1]  # remove trailing comma for last element
+                    # Process buffer as a complete dictionary entry
+                    try:
+                        # Temporarily wrap buffer to make it a valid dict format if needed
+                        data = eval(f"dict({buffer})")
+                        for key, value in data.items():
+                            yield key, value
+                    except SyntaxError as e:
+                        print(f"Error parsing buffer: {e}")
+                    # Reset buffer after processing
+                    buffer = ''
+            if '}' in line:
+                reading = False
+
+# Usage
+for key, value in parse_large_dict('ticker_list_yf.txt'):
+    print(f"Symbol: {key}, Name: {value}")
+    process_ticker(key,value)
+
+
 
 
 # Create DataFrame from the list of dictionaries
