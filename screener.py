@@ -70,7 +70,7 @@ for i in range(0, len(tickers_dict), batch_size):
     
             # Check if necessary data is available
             if market_cap > 0 and 'Invested Capital' in balance_sheet.index and 'Cash And Cash Equivalents' in balance_sheet.index and 'Total Debt' in balance_sheet.index:
-                invested_capital_current = balance_sheet.loc['Invested Capital'].iloc[0]
+                invested_capital_current = balance_sheet.loc['Invested Capital']
                 total_cash = balance_sheet.loc['Cash And Cash Equivalents'].iloc[0]
                 total_debt = balance_sheet.loc['Total Debt'].iloc[0]
     
@@ -83,8 +83,10 @@ for i in range(0, len(tickers_dict), batch_size):
                     # Add to the list as a dictionary
                     # spitznagel_worthy.append({"Ticker": ticker_symbol, "Faustmann Ratio": faustmann_ratio})
                    #  print(f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, checking roic")
-                    ebit = ticker.financials.loc["EBIT"].iloc[0]
-                    roic = round(ebit/invested_capital_current,3)
+                    ebit = ticker.financials.loc["EBIT"]
+                    roics = ebit/invested_capital_current
+                    roic_mean = roics.mean()
+                    roic = round(roic_mean,3)
                     #print(f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}")
                     if roic > 0.5:
                         spitznagel_worthy.append({"Ticker": ticker_symbol, "Faustmann_Ratio": faustmann_ratio, "ROIC": roic})
