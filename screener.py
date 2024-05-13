@@ -79,12 +79,12 @@ def process_ticker(ticker_symbol, company_name):
                 # Add to the list as a dictionary
                 # spitznagel_worthy.append({"Ticker": ticker_symbol, "Faustmann Ratio": faustmann_ratio})
                 #  print(f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, checking roic")
-                ebit = ticker.financials.loc["EBIT"],iloc[:-1]
+                ebit = ticker.financials.loc["EBIT"].iloc[:-1]
                 roics = ebit/invested_capital_current
                 roic_mean = roics.mean()
                 roic = round(roic_mean,3)
                 #print(f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}")
-                if roic > 0.5:
+                if roic > 0.3:
                     spitznagel_worthy.append({"Ticker": ticker_symbol, "Faustmann_Ratio": faustmann_ratio, "ROIC": roic})
                     #print("FOUND ONE")
                     print(f"Ticker: {ticker_symbol}, Company: {company_name}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}")
@@ -146,10 +146,39 @@ def parse_large_dict(file_path):
                 reading = False
 
 # Usage
-for key, value in parse_large_dict('ticker_list_yf.txt'):
-    print(f"Symbol: {key}, Name: {value}")
-    process_ticker(key,value)
+# for key, value in parse_large_dict('ticker_list_yf.txt'):
+#     print(f"Symbol: {key}, Name: {value}")
+#     process_ticker(key,value)
+# Function to get the last processed ticker
+def get_last_processed_symbol(file_path):
+    try:
+        with open(file_path, 'r') as file:
+            last_processed_symbol = file.read().strip()
+        return last_processed_symbol
+    except FileNotFoundError:
+        return None
 
+# Function to save the last processed ticker
+def save_last_processed_symbol(symbol, file_path):
+    with open(file_path, 'w') as file:
+        file.write(symbol)
+
+# Main logic to parse and process tickers
+def main():
+    last_processed_symbol = get_last_processed_symbol('last_processed.txt')
+    start_processing = False if last_processed_symbol else True
+
+    for key, value in parse_large_dict('ticker_list_yf.txt'):
+        if start_processing:
+            print(f"Symbol: {key}, Name: {value}")
+            process_ticker(key, value)
+            save_last_processed_symbol(key, 'last_processed.txt')
+        elif key == last_processed_symbol:
+            start_processing = True
+
+# Call the main function to run the script
+if __name__ == "__main__":
+    main()
 
 
 
