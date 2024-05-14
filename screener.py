@@ -33,14 +33,6 @@ class NotFoundLogHandler(logging.Handler):
 not_found_handler = NotFoundLogHandler()
 logger.addHandler(not_found_handler)
 
-# data from https://github.com/mlapenna7/yh_symbol_universe/blob/main/yhallsym.txt
-# Load tickers from the file
-# with open("ticker_list_yf.txt", "r") as file:
-#     content = file.read()
-#     tickers_dict = ast.literal_eval(content)  # Safely evaluate the string as a dictionary
-
-# # Extract only the tickers
-# tickers = list(tickers_dict.keys())
 # Initialize an empty list to store dictionaries
 spitznagel_worthy = []
 
@@ -54,10 +46,7 @@ def send_telegram_message(chat_id, text):
     response = requests.post(url, data=data)
     return response.json()
 
-# Iterate over tickers and calculate the Faustmann ratio
-print("lets go")
-
-
+# Function to process each ticker and calculate the necessary financial ratios
 def process_ticker(ticker_symbol, company_name):
     ticker = yf.Ticker(ticker_symbol)
     try:
@@ -110,6 +99,34 @@ def process_ticker(ticker_symbol, company_name):
         pass
 
     gc.collect()
+
+# Function to parse a large dictionary file incrementally
+def parse_large_dict(file_path):
+    """ Generator function to parse a large dictionary file incrementally. """
+    with open(file_path, 'r') as file:
+        reading = False
+        buffer = ''
+        for line in file:
+            if '{' in line:
+                reading = True
+            if reading:
+                buffer += line.strip()
+                if '},' in buffer or '}' in buffer:
+                    # Handle the completion of a dictionary entry
+                    if buffer.endswith(','):
+                        buffer = buffer[:-1]  # remove trailing comma for last element
+                    # Process buffer as a complete dictionary entry
+                    try:
+                        # Temporarily wrap buffer to make it a valid dict format if needed
+                        data = eval(f"dict({buffer})")
+                        for key, value in data.items():
+                            yield key, value
+                    except SyntaxError as e:
+                        print(f"Error parsing buffer: {e}")
+                    # Reset buffer after processing
+                    buffer = ''
+            if '}' in line:
+                reading = False
 
 # Function to get the last processed ticker
 def get_last_processed_symbol(file_path):
