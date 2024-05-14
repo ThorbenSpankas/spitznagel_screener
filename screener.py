@@ -66,89 +66,51 @@ def process_ticker(ticker_symbol, company_name):
 
         # Check if necessary data is available
         if market_cap > 0 and 'Invested Capital' in balance_sheet.index and 'Cash And Cash Equivalents' in balance_sheet.index and 'Total Debt' in balance_sheet.index:
-            invested_capital_current = balance_sheet.loc['Invested Capital'].iloc[:-1]
+            invested_capital_current = balance_sheet.loc['Invested Capital'].iloc[0]
             total_cash = balance_sheet.loc['Cash And Cash Equivalents'].iloc[0]
             total_debt = balance_sheet.loc['Total Debt'].iloc[0]
+            
+            # Check if Preferred Stock is available, otherwise set it to 0
+            if 'Preferred Stock' in balance_sheet.index:
+                preferred_equity = balance_sheet.loc['Preferred Stock'].iloc[0]
+            else:
+                preferred_equity = 0
 
-            below_debt_limit = invested_capital_current + total_cash > total_debt
+            below_debt_limit = invested_capital_current + total_cash > total_debt + preferred_equity
             # Calculate the Faustmann ratio
-            faustmann_ratio = round(market_cap / (invested_capital_current + total_cash - total_debt),3)
+            faustmann_ratio = round(market_cap / (invested_capital_current + total_cash - total_debt - preferred_equity), 3)
 
             # Check if Faustmann ratio is below 1
             if below_debt_limit:
-                # Add to the list as a dictionary
-                # spitznagel_worthy.append({"Ticker": ticker_symbol, "Faustmann Ratio": faustmann_ratio})
-                #  print(f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, checking roic")
-                ebit = ticker.financials.loc["EBIT"].iloc[:-1]
-                roics = ebit/invested_capital_current
-                roic_mean = roics.mean()
-                roic = round(roic_mean,3)
-                #print(f"Ticker: {ticker_symbol}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}")
+                ebit = ticker.financials.loc["EBIT"].iloc[0]
+                roic = round(ebit / invested_capital_current, 3)
+
                 if roic > 0.3:
                     spitznagel_worthy.append({"Ticker": ticker_symbol, "Faustmann_Ratio": faustmann_ratio, "ROIC": roic})
-                    #print("FOUND ONE")
                     print(f"Ticker: {ticker_symbol}, Company: {company_name}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}")
                     message = f"Ticker: {ticker_symbol}, Company: {company_name}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}"
                     send_telegram_message(GROUP_CHAT_ID, message)
         
-
     except requests.exceptions.HTTPError as e:
         if e.status_code == 404:
-            a= 33
-
-    except requests.exceptions.HTTPError as err:
-        a=44
+            pass
 
     except requests.exceptions.RequestException as err:
-        c = 309
+        pass
     
     except KeyError:
         # Handle specific missing data errors quietly or log them
-        a = 2# logging.info(f"Data missing for {ticker_symbol}")
+        pass
 
     except IndexError:
         # Handle cases where .iloc[] fails due to missing data
-        a = 3 #logging.info(f"Index error for {ticker_symbol}, might be missing financial data")
+        pass
     
     except Exception as e:
-        a = 1
-        #print(f"Error processing {ticker_symbol}: {e}")
+        pass
 
     gc.collect()
 
-    # telegram bot 6717990254:AAGFOAqjtHJ7gRD0enLdQvCkIFvJTtFOzYM
-
-def parse_large_dict(file_path):
-    """ Generator function to parse a large dictionary file incrementally. """
-    with open(file_path, 'r') as file:
-        reading = False
-        buffer = ''
-        for line in file:
-            if '{' in line:
-                reading = True
-            if reading:
-                buffer += line.strip()
-                if '},' in buffer or '}' in buffer:
-                    # Handle the completion of a dictionary entry
-                    if buffer.endswith(','):
-                        buffer = buffer[:-1]  # remove trailing comma for last element
-                    # Process buffer as a complete dictionary entry
-                    try:
-                        # Temporarily wrap buffer to make it a valid dict format if needed
-                        data = eval(f"dict({buffer})")
-                        for key, value in data.items():
-                            yield key, value
-                    except SyntaxError as e:
-                        print(f"Error parsing buffer: {e}")
-                    # Reset buffer after processing
-                    buffer = ''
-            if '}' in line:
-                reading = False
-
-# Usage
-# for key, value in parse_large_dict('ticker_list_yf.txt'):
-#     print(f"Symbol: {key}, Name: {value}")
-#     process_ticker(key,value)
 # Function to get the last processed ticker
 def get_last_processed_symbol(file_path):
     try:
@@ -179,15 +141,3 @@ def main():
 # Call the main function to run the script
 if __name__ == "__main__":
     main()
-
-
-
-# Create DataFrame from the list of dictionaries
-# spitznagel_worthy = pd.DataFrame(spitznagel_worthy)
-
-# Save the DataFrame with the results to a CSV file
-# spitznagel_worthy.to_csv("spitznagel_worthy.csv", index=False)
-
-# invalid_tickers = not_found_handler.invalid_tickers
-# for ticker in invalid_tickers:
-#     tickers.pop(ticker, None)
