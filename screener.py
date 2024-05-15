@@ -33,8 +33,8 @@ class NotFoundLogHandler(logging.Handler):
 not_found_handler = NotFoundLogHandler()
 logger.addHandler(not_found_handler)
 
-# Initialize an empty list to store dictionaries
-spitznagel_worthy = []
+# Initialize a list to store dictionaries for the top 30 ROIC companies
+top_roic_companies = []
 
 def send_telegram_message(chat_id, text):
     """Sends a message to the specified Telegram chat."""
@@ -75,10 +75,21 @@ def process_ticker(ticker_symbol, company_name):
                 roic = round(ebit / invested_capital_current, 3)
 
                 if roic > 0.3:
-                    spitznagel_worthy.append({"Ticker": ticker_symbol, "Faustmann_Ratio": faustmann_ratio, "ROIC": roic})
-                    print(f"Ticker: {ticker_symbol}, Company: {company_name}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}")
-                    message = f"Ticker: {ticker_symbol}, Company: {company_name}, Faustmann Ratio: {faustmann_ratio}, ROIC: {roic}"
-                    send_telegram_message(GROUP_CHAT_ID, message)
+                    # Add to top ROIC companies list if not full, else replace the lowest ROIC if the new one is higher
+                    if len(top_roic_companies) < 30:
+                        top_roic_companies.append({"Ticker": ticker_symbol, "Company": company_name, "Faustmann_Ratio": faustmann_ratio, "ROIC": roic})
+                    else:
+                        min_roic = min(top_roic_companies, key=lambda x: x['ROIC'])
+                        if roic > min_roic['ROIC']:
+                            top_roic_companies.remove(min_roic)
+                            top_roic_companies.append({"Ticker": ticker_symbol, "Company": company_name, "Faustmann_Ratio": faustmann_ratio, "ROIC": roic})
+
+                    # Sort and get the top 10 by lowest Faustmann ratio
+                    if len(top_roic_companies) == 30:
+                        top_roic_companies.sort(key=lambda x: x['Faustmann_Ratio'])
+                        top_10_faustmann = top_roic_companies[:10]
+                        message = "\n".join([f"Ticker: {item['Ticker']}, Company: {item['Company']}, Faustmann Ratio: {item['Faustmann_Ratio']}, ROIC: {item['ROIC']}" for item in top_10_faustmann])
+                        send_telegram_message(GROUP_CHAT_ID, message)
         
     except requests.exceptions.HTTPError as e:
         if e.status_code == 404:
