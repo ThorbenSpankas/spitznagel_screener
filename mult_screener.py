@@ -7,9 +7,10 @@ import requests
 import json
 from itertools import islice
 import time
+import threading
 
 # Initialize the Telegram Bot with your token
-TELEGRAM_TOKEN = '6717990254:AAGFOAqjtHJ7gRD0enLdQvCkIFvJTtFOzYM'
+TELEGRAM_TOKEN = '6717990254:AAGFOqjtHJ7gRD0enLdQvCkIFvJTtFOzYM'
 GROUP_CHAT_ID = '-4220170140'
 
 # Configure logging
@@ -39,6 +40,7 @@ logger.addHandler(not_found_handler)
 # Initialize a list to store dictionaries for the top 30 ROIC companies
 top_roic_companies = []
 processed_tickers_count = 0
+processed_tickers_lock = threading.Lock()
 
 def send_telegram_message(chat_id, text):
     """Sends a message to the specified Telegram chat."""
@@ -120,7 +122,9 @@ def process_ticker(ticker, company_name):
     except Exception as e:
         pass
 
-    processed_tickers_count += 1
+    with processed_tickers_lock:
+        processed_tickers_count += 1
+
     gc.collect()
 
 # Function to parse a large dictionary file incrementally
@@ -186,6 +190,16 @@ def batch_generator(iterable, n=10):
             break
         yield batch
 
+# Function to send hourly updates
+def send_hourly_updates(total_tickers):
+    while True:
+        time.sleep(3600)  # Wait for 1 hour
+        with processed_tickers_lock:
+            processed = processed_tickers_count
+        remaining = total_tickers - processed
+        message = f"Processed: {processed} stocks\nRemaining: {remaining} stocks"
+        send_telegram_message(GROUP_CHAT_ID, message)
+
 # Main logic to parse and process tickers
 def main():
     last_processed_symbol = get_last_processed_symbol('last_processed.txt')
@@ -199,21 +213,17 @@ def main():
         start_index = 0
 
     load_top_roic_companies('top_roic_companies.json')
-    start_time = time.time()
+
+    # Start the hourly update thread
+    total_tickers = len(ticker_dict)
+    update_thread = threading.Thread(target=send_hourly_updates, args=(total_tickers,), daemon=True)
+    update_thread.start()
+
     for batch in batch_generator(list(ticker_dict.items())[start_index:], n=50):
         tickers, companies = zip(*batch)
         process_batch(tickers, companies)
         save_last_processed_symbol(tickers[-1], 'last_processed.txt')
         save_top_roic_companies('top_roic_companies.json')
-
-        # Send update message every hour
-        if time.time() - start_time >= 3600:
-            total_tickers = len(ticker_dict)
-            processed = start_index + processed_tickers_count
-            remaining = total_tickers - processed
-            message = f"Processed: {processed} stocks\nRemaining: {remaining} stocks"
-            send_telegram_message(GROUP_CHAT_ID, message)
-            start_time = time.time()  # Reset the timer
 
 # Call the main function to run the script
 if __name__ == "__main__":
