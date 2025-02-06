@@ -85,7 +85,7 @@ def process_ticker(ticker, company_name):
         if denominator <= 0:
             return
         faustmann_ratio = round(market_cap / denominator, 3)
-        if faustmann_ratio > 3:
+        if faustmann_ratio > 3 or faustmann_ratio is None:
             return
 
         # Fetch financials and calculate ROIC (Return on Invested Capital)
@@ -106,13 +106,10 @@ def process_ticker(ticker, company_name):
                 return
         else:
             return
-
-        # 3. (Optional) Filter for low Faustmann ratio.
-        # Adjust the threshold below as needed; here we only accept companies with faustmann_ratio <= 1.0.
-        # if faustmann_ratio > 1.0:
-        #     return
-        # --- END NEW FILTERS ---
-
+        
+        if pd.isna(faustmann_ratio) or pd.isna(roic) or pd.isna(debt_ratio):
+            return
+        
         # If all filters pass, add the company to the top_roic_companies list.
         company_data = {
             "Ticker": ticker.ticker,
