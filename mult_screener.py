@@ -9,13 +9,11 @@ from itertools import islice
 import time
 import threading
 
-# Initialize the Telegram Bot with your token
-TELEGRAM_TOKEN = '6717990254:AAGFOqjtHJ7gRD0enLdQvCkIFvJTtFOzYM'
-GROUP_CHAT_ID = '-4220170140'
-
 # Configure logging
 logger = logging.getLogger('yfinance')
 logger.setLevel(logging.DEBUG)  # Adjust level as necessary
+TELEGRAM_TOKEN='abc'
+GROUP_CHAT_ID = '123'
 
 # Define a custom log handler
 class NotFoundLogHandler(logging.Handler):
@@ -71,54 +69,87 @@ def process_ticker(ticker, company_name):
         market_cap = ticker.info.get("marketCap", 0)
         balance_sheet = ticker.balance_sheet
 
-        # Check if necessary data is available
-        if market_cap > 0 and 'Invested Capital' in balance_sheet.index and 'Cash And Cash Equivalents' in balance_sheet.index and 'Total Debt' in balance_sheet.index:
-            invested_capital_current = balance_sheet.loc['Invested Capital'].iloc[0]
-            total_cash = balance_sheet.loc['Cash And Cash Equivalents'].iloc[0]
-            total_debt = balance_sheet.loc['Total Debt'].iloc[0]
-            
-            # Check if Preferred Stock is available, otherwise set it to 0
-            preferred_equity = balance_sheet.loc['Preferred Stock'].iloc[0] if 'Preferred Stock' in balance_sheet.index else 0
+        # Ensure necessary data is available
+        if market_cap <= 0 or 'Invested Capital' not in balance_sheet.index:
+            return
 
-            # Calculate the Faustmann ratio
-            faustmann_ratio = round(market_cap / (invested_capital_current + total_cash - total_debt - preferred_equity), 3)
+        # Extract key balance sheet items
+        invested_capital_current = balance_sheet.loc['Invested Capital'].iloc[0]
+        total_cash = balance_sheet.loc['Cash And Cash Equivalents'].iloc[0]
+        total_debt = balance_sheet.loc['Total Debt'].iloc[0]
+        # Use Preferred Stock if available; otherwise default to 0
+        preferred_equity = balance_sheet.loc['Preferred Stock'].iloc[0] if 'Preferred Stock' in balance_sheet.index else 0
 
-            if faustmann_ratio > 0:
-                ebit = ticker.financials.loc["EBIT"]
-                invested_capital = balance_sheet.loc['Invested Capital']
-                roic = round((ebit / invested_capital).mean(), 3)
+        # Calculate the Faustmann ratio (market cap relative to net worth)
+        denominator = invested_capital_current + total_cash - total_debt - preferred_equity
+        if denominator <= 0:
+            return
+        faustmann_ratio = round(market_cap / denominator, 3)
+        if faustmann_ratio > 3:
+            return
 
-                # Add to top ROIC companies list if not full, else replace the lowest ROIC if the new one is higher
-                if len(top_roic_companies) < 30:
-                    top_roic_companies.append({"Ticker": ticker.ticker, "Company": company_name, "Faustmann_Ratio": faustmann_ratio, "ROIC": roic})
-                else:
-                    min_roic = min(top_roic_companies, key=lambda x: x['ROIC'])
-                    if roic > min_roic['ROIC']:
-                        top_roic_companies.remove(min_roic)
-                        top_roic_companies.append({"Ticker": ticker.ticker, "Company": company_name, "Faustmann_Ratio": faustmann_ratio, "ROIC": roic})
+        # Fetch financials and calculate ROIC (Return on Invested Capital)
+        ebit_series = ticker.financials.loc["EBIT"]
+        invested_capital_series = balance_sheet.loc['Invested Capital']
+        # Compute the mean ROIC; adjust this calculation if necessary
+        roic = round((ebit_series / invested_capital_series).mean(), 3)
 
-                # Sort and get the top 10 by lowest Faustmann ratio
-                if len(top_roic_companies) == 30:
-                    top_roic_companies.sort(key=lambda x: x['Faustmann_Ratio'])
-                    top_10_faustmann = top_roic_companies[:10]
-                    message = "\n".join([f"Ticker: {item['Ticker']}, Company: {item['Company']}, Faustmann Ratio: {item['Faustmann_Ratio']}, ROIC: {item['ROIC']}" for item in top_10_faustmann])
-                    send_telegram_message(GROUP_CHAT_ID, message)
+        # --- NEW FILTERS BASED ON The Dao of Capital IDEAS ---
+        # 1. Filter for ROIC between 30% and 150%
+        if roic < 0.20 or roic > 1.50:
+            return
+
+        # 2. Filter for low debt: Check if the debt-to-invested-capital ratio is less than 30%
+        if invested_capital_current != 0:
+            debt_ratio = total_debt / invested_capital_current
+            if debt_ratio > 0.30:
+                return
+        else:
+            return
+
+        # 3. (Optional) Filter for low Faustmann ratio.
+        # Adjust the threshold below as needed; here we only accept companies with faustmann_ratio <= 1.0.
+        # if faustmann_ratio > 1.0:
+        #     return
+        # --- END NEW FILTERS ---
+
+        # If all filters pass, add the company to the top_roic_companies list.
+        company_data = {
+            "Ticker": ticker.ticker,
+            "Company": company_name,
+            "Faustmann_Ratio": faustmann_ratio,
+            "ROIC": roic,
+            "Debt_Ratio": round(debt_ratio, 3)
+        }
+        if len(top_roic_companies) < 30:
+            top_roic_companies.append(company_data)
+        else:
+            # If list is full, check if this company has a higher ROIC than the current lowest.
+            min_roic_company = min(top_roic_companies, key=lambda x: x['ROIC'])
+            if roic > min_roic_company['ROIC']:
+                top_roic_companies.remove(min_roic_company)
+                top_roic_companies.append(company_data)
+
+        # If we have 30 companies, sort them by Faustmann ratio (lowest first),
+        # then select the top 10 to send an update via Telegram.
+        if len(top_roic_companies) == 30:
+            top_roic_companies.sort(key=lambda x: x['Faustmann_Ratio'])
+            top_10_faustmann = top_roic_companies[:10]
+            message = "\n".join([
+                f"Ticker: {item['Ticker']}, Company: {item['Company']}, Faustmann Ratio: {item['Faustmann_Ratio']}, ROIC: {item['ROIC']}, Debt Ratio: {item['Debt_Ratio']}"
+                for item in top_10_faustmann
+            ])
+            # send_telegram_message(GROUP_CHAT_ID, message)
         
     except requests.exceptions.HTTPError as e:
         if e.status_code == 404:
             pass
-
     except requests.exceptions.RequestException as err:
         pass
-    
     except KeyError:
-        # Handle specific missing data errors quietly or log them
         pass
-
     except IndexError:
-        # Handle cases where .iloc[] fails due to missing data
         pass
-    
     except Exception as e:
         pass
 
@@ -198,7 +229,11 @@ def send_hourly_updates(total_tickers):
             processed = processed_tickers_count
         remaining = total_tickers - processed
         message = f"Processed: {processed} stocks\nRemaining: {remaining} stocks"
-        send_telegram_message(GROUP_CHAT_ID, message)
+        try:
+            # send_telegram_message(GROUP_CHAT_ID, message)
+            print(f"Sent update: {message}")
+        except Exception as e:
+            print(f"Error sending update: {e}")
 
 # Main logic to parse and process tickers
 def main():
