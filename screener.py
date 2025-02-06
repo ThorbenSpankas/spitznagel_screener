@@ -5,14 +5,12 @@ import ast
 import gc
 import requests
 
-# Initialize the Telegram Bot with your token
-TELEGRAM_TOKEN='6717990254:AAGFOAqjtHJ7gRD0enLdQvCkIFvJTtFOzYM'
-GROUP_CHAT_ID = '-4220170140'
-
 # Configure logging
 logger = logging.getLogger('yfinance')
 logger.setLevel(logging.DEBUG)  # Adjust level as necessary
-
+# Initialize the Telegram Bot with your token
+TELEGRAM_TOKEN='abc'
+GROUP_CHAT_ID = '123'
 # Define a custom log handler
 class NotFoundLogHandler(logging.Handler):
     def __init__(self, *args, **kwargs):
