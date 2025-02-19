@@ -85,7 +85,7 @@ def process_ticker(ticker, company_name):
         if denominator <= 0:
             return
         faustmann_ratio = round(market_cap / denominator, 3)
-        if faustmann_ratio > 3 or faustmann_ratio is None:
+        if faustmann_ratio > 10 or faustmann_ratio is None:
             return
 
         # Fetch financials and calculate ROIC (Return on Invested Capital)
@@ -95,14 +95,14 @@ def process_ticker(ticker, company_name):
         roic = round((ebit_series / invested_capital_series).mean(), 3)
 
         # --- NEW FILTERS BASED ON The Dao of Capital IDEAS ---
-        # 1. Filter for ROIC between 30% and 150%
+        # 1. Filter for ROIC between 20% and 150%
         if roic < 0.20 or roic > 1.50:
             return
 
-        # 2. Filter for low debt: Check if the debt-to-invested-capital ratio is less than 30%
+        # 2. Filter for low debt: Check if the debt-to-invested-capital ratio is less than 50%
         if invested_capital_current != 0:
             debt_ratio = total_debt / invested_capital_current
-            if debt_ratio > 0.30:
+            if debt_ratio > 0.50:
                 return
         else:
             return
